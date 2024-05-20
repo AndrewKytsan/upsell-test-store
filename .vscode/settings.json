@@ -1,0 +1,21 @@
+{
+	"emmet.includeLanguages": {
+		"liquid": "html"
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
+	},
+	"[liquid]": {
+		"editor.defaultFormatter": "Shopify.theme-check-vscode",
+		"editor.formatOnSave": true
+	},
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": true,
+		"source.fixAll.stylelint": true
+	},
+	"editor.formatOnSave": true,
+	"stylelint.validate": ["scss"],
+	"css.validate": false,
+	"scss.validate": false,
+	"files.autoSave": "off"
+}
