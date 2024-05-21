@@ -27,6 +27,14 @@
 
   <script src="{{ 'product-info.js' | asset_url }}" defer="defer"></script>
   <script src="{{ 'product-form.js' | asset_url }}" defer="defer" type="module"></script>
+  {%- assign upsell_products = product.metafields.custom.upsell_products.value -%}
+  {%- if upsell_products != blank -%}
+    <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
+    <script src="{{ 'upsell.js' | asset_url }}" defer="defer" type="module"></script>
+    {{ 'upsell.scss.css' | asset_url | stylesheet_tag }}
+  {%- endif -%}
+
   {% if section.settings.image_zoom == 'hover' %}
     <script id="EnableZoomOnHover-main" src="{{ 'magnify.js' | asset_url }}" defer="defer"></script>
   {% endif %}
@@ -501,6 +509,116 @@
               </product-recommendations>
             {%- when 'icon-with-text' -%}
               {% render 'icon-with-text', block: block %}
+            {%- when 'custom-upsell' -%}
+              {%- if upsell_products != blank -%}
+                <div
+                  class="product-upsell"
+                  style="padding-top: {{ block.settings.padding_top }}px; padding-bottom: {{ block.settings.padding_bottom }}px;"
+                >
+                  <h3>{{ block.settings.title }}</h3>
+                  <div class="product-upsell__container {% if upsell_products.count > 3 %}upsell-slider splide {% endif %}">
+                    {% if upsell_products.count > 3 %}
+                      <div class="splide__track">
+                        <div class="splide__list">
+                    {% endif %}
+                    {%- for product in upsell_products limit: 5 -%}
+                      <a
+                        href="{{ product.url }}"
+                        class="product-upsell__card  {% if upsell_products.count > 3 %}splide__slide{% endif %}"
+                      >
+                        <div class="image-wrapper">
+                          <img
+                            src="{{ product.featured_media | img_url: '400x' }}"
+                            alt="{{product.featured_media.alt }}"
+                            width="auto"
+                            height="auto"
+                            loading="lazy"
+                          >
+                        </div>
+                        <div class="product-info">
+                          <p>{{ product.title }}</p>
+                          <div class="price-list">
+                            <span class="price {% if product.compare_at_price and product.compare_at_price > 0 %}on-sale{% endif %}">
+                              {{- product.price | money -}}
+                            </span>
+                            {%- if product.compare_at_price and product.compare_at_price > 0 -%}
+                              <span class="price-compare">{{ product.compare_at_price | money }}</span>
+                            {%- endif -%}
+                          </div>
+                          {%- if block.settings.enable_buy_now -%}
+                            {%- capture form_id -%}
+                            product-form-{{product.id }}
+                          {%- endcapture -%}
+                            {%- form 'product', product, id: form_id, class: 'form', novalidate: 'novalidate' -%}
+                              <input
+                                type="hidden"
+                                name="quantity"
+                                value="{{ product.selected_or_first_available_variant.quantity_rule.min }}"
+                              >
+                              <input
+                                type="hidden"
+                                name="id"
+                                value="{{ product.selected_or_first_available_variant.id }}"
+                              >
+
+                              <input
+                                type="hidden"
+                                name="properties[upsell]"
+                                value="true"
+                              >
+
+                              {%- liquid
+                                assign check_against_inventory = true
+                                if product.selected_or_first_available_variant.inventory_management != 'shopify' or product.selected_or_first_available_variant.inventory_policy == 'continue'
+                                  assign check_against_inventory = false
+                                endif
+                                if product.selected_or_first_available_variant.quantity_rule.min > product.selected_or_first_available_variant.inventory_quantity and check_against_inventory
+                                  assign quantity_rule_soldout = true
+                                endif
+                              -%}
+                              <button
+                                type="submit"
+                                name="add"
+                                class="js-add-upsell button upsell-product__button"
+                                {% if product.selected_or_first_available_variant.available == false
+                                  or quantity_rule_soldout
+                                %}
+                                  disabled
+                                {% endif %}
+                              >
+                                <span>
+                                  {%- if product.selected_or_first_available_variant.available == false
+                                    or quantity_rule_soldout
+                                  -%}
+                                    {{ 'products.product.sold_out' | t }}
+                                  {%- else -%}
+                                    {{ 'products.product.add_to_cart' | t }}
+                                  {%- endif -%}
+                                </span>
+                                <div class="loading-spinner hidden">
+                                  <svg
+                                    aria-hidden="true"
+                                    focusable="false"
+                                    class="spinner"
+                                    viewBox="0 0 66 66"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <circle class="path" fill="none" stroke-width="6" cx="33" cy="33" r="30"></circle>
+                                  </svg>
+                                </div>
+                              </button>
+                            {%- endform -%}
+                          {%- endif -%}
+                        </div>
+                      </a>
+                    {%- endfor -%}
+                    {% if upsell_products.count > 3 %}
+                      </div>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              {%- endif -%}
           {%- endcase -%}
         {%- endfor -%}
         <a href="{{ product.url }}" class="link product__view-details animate-arrow">
@@ -648,6 +766,48 @@
   "blocks": [
     {
       "type": "@app"
+    },
+    {
+      "type": "custom-upsell",
+      "name": "Custom upsell",
+      "settings": [
+        {
+          "type": "header",
+          "content": "Indentation"
+        },
+        {
+          "type": "range",
+          "id": "padding_top",
+          "label": "Top indentation",
+          "min": 0,
+          "max": 50,
+          "step": 1,
+          "unit": "px",
+          "default": 15
+        },
+        {
+          "type": "range",
+          "id": "padding_bottom",
+          "label": "Bottom indentation",
+          "min": 0,
+          "max": 50,
+          "step": 1,
+          "unit": "px",
+          "default": 15
+        },
+        {
+          "type": "text",
+          "id": "title",
+          "label": "Title",
+          "default": "You may also like"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_buy_now",
+          "label": "Enable buy now",
+          "default": true
+        }
+      ]
     },
     {
       "type": "text",
